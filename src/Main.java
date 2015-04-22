@@ -190,9 +190,9 @@ public class Main {
         server.createContext("/getKidList", new Handler("getKidList"));		//COMPLETO
         server.createContext("/forgot",new Handler("forgot"));				//COMPLETO
         server.createContext("/editShadow",new Handler("editShadow"));		//COMPLETO
-        server.createContext("/postChat",new Handler("postChat"));
-        server.createContext("/sendPic",new Handler("sendPic")); 
-        server.createContext("/alertParent",new Handler("alertParent"));
+        server.createContext("/postChat",new Handler("postChat"));			//COMPLETO
+        server.createContext("/sendPic",new Handler("sendPic")); 			//COMPLETO
+        server.createContext("/alertParent",new Handler("alertParent"));	//COMPLETO
         server.createContext("/", new Handler("empty"));
         server.setExecutor(null); // creates a default executor
         server.start();
@@ -231,7 +231,7 @@ public class Main {
 				String kidID = "0";
 				final ResultSet rs1;
 				String name="";
-				final int auxInt=0;
+				int cid=0;
 
 				switch(section) {
 					case "register":
@@ -330,6 +330,7 @@ public class Main {
 							String address = "";
 							String isActive = "offline";
 							String avatar;
+							
 							do {
 								//list($kid,$name,$sex,$last,$kAvatar,$last_pos,$coord,$address) = $r;
 								kid = rs.getInt("id");
@@ -383,7 +384,7 @@ public class Main {
 										String cAvatar = "";
 										int isKid = chatRS.getInt("isKid");
 										int isPic = chatRS.getInt("isPic");
-										int cid = chatRS.getInt("id");
+										cid = chatRS.getInt("id");
 										System.out.println("Chat ID: "+cid);
 										String msg = chatRS.getString("message");
 										String timestamp = chatRS.getString("timeStamp");
@@ -406,7 +407,7 @@ public class Main {
 										String pic = "";
 										if(isPic == 1)
 											pic = "isPic";
-										chat+= "<div class=\"chatBody "+chatClass+" "+persp+"Persp "+pic+"\" id=\"chat-"+cid+"\"><div class=\"chatName\">"+cname+"</div><div class=\"chatAvatar\" style=\"background:url("+cAvatar+") center no-repeat;background-size:cover;\"></div><div class=\"chatTime\" old_time=\""+timestamp+"\"></div><div class=\"chatMessage\">"+msg+"</div></div>";
+										chat+= "<div class=\"chatBody "+chatClass+" "+persp+"Persp "+pic+"\" id=\"chat-"+cid+"\"><div class=\"chatName\">"+cname+"</div><div class=\"chatAvatar\" style=\"background:url("+cAvatar+") center no-repeat;background-size:cover;\"></div><div class=\"chatTime\" old_time=\""+timestamp+"\"></div><div class=\"chatMessage\">"+utils.unescapeHtml(msg)+"</div></div>";
 									}while(chatRS.next());
 								}
 								List<GeocoderResult> results = null;
@@ -518,6 +519,146 @@ public class Main {
 						}
 						response = genson.serialize(json);
 						break;
+					case "postChat":
+						token = POST_("token");
+						boolean kidMode = Boolean.parseBoolean(POST_("kidMode"));
+						boolean shadowMode = Boolean.parseBoolean(POST_("shadowMode"));
+						String msg = POST_("message");
+						kid = Integer.parseInt(POST_("kid"));
+						int isKid = 0;
+						if(kidMode == true)
+							isKid = 1;
+						Long timestamp = time();
+						rs1 = stmt.executeQuery("SELECT p.id,p.avatar AS pAvatar,k.avatar AS kAvatar,p.nombre AS pName,k.nombre AS kName FROM parents AS p LEFT JOIN kids AS k ON k.id = '"+kid+"' WHERE p.token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
+						//list($uid,$pAvatar,$kAvatar,$pname,$kname) = mysql_fetch_array($q);
+						rs1.first();
+						uid = rs1.getInt("id");
+						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp) VALUES ('"+isKid+"','"+kid+"','"+uid+"','"+mysql_real_escape_string(utils.escapeHtml(msg))+"','"+timestamp+"')", Statement.RETURN_GENERATED_KEYS);
+						ResultSet rsAux = stmt2.getGeneratedKeys();
+						rsAux.next();
+						int chatId = rsAux.getInt(1);
+						
+						if(isKid == 0){
+							if(rs1.getInt("pAvatar") == 1) 
+								userAvatar = "http://"+ip+":"+port+"/avatars/parents/"+uid+".png";
+							else
+								userAvatar = "images/parent.png";
+						}else{
+							if(rs1.getInt("kAvatar") == 1) 
+								userAvatar = "http://"+ip+":"+port+"/avatars/kid/"+kid+".png";
+							else
+								userAvatar = "images/kid.png";
+						}
+						final HashMap<String,Object>postHtml = new HashMap<String, Object>() {{
+							put("status", "OK");
+						}};
+						postHtml.put("id", chatId);
+						postHtml.put("name", (isKid==0) ? rs1.getString("pName") : rs1.getString("kName"));
+						postHtml.put("avatar", userAvatar);
+						postHtml.put("time", timestamp);
+						postHtml.put("message",msg);
+						postHtml.put("class", (isKid==0) ? "parentChat" : "kidChat");
+						postHtml.put("isPic",0);
+						
+						json = new HashMap<String, Object>() {{
+							put("status", "OK");
+							put("post", postHtml);
+						}};
+						response = genson.serialize(json);
+						break;
+					case "sendPic":
+						token = POST_("token");
+						String image = POST_("image");
+						kid = Integer.parseInt(POST_("kid"));
+						String key = passwordGenerator(3,3,3);
+						saveImage(image,key);
+						
+						msg = "<img src=\"http://"+ip+":"+port+"/pics/"+key+"_thumb.jpg\" class=\"parentPic\" full=\""+key+"\"/>";
+						timestamp = time();
+						rs1 = stmt.executeQuery("SELECT p.id,p.avatar AS pAvatar,k.avatar AS kAvatar,p.nombre AS pName,k.nombre AS kName FROM parents AS p LEFT JOIN kids AS k ON k.id = '"+kid+"' WHERE p.token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
+						//list($uid,$pAvatar,$kAvatar,$pname,$kname) = mysql_fetch_array($q);
+						rs1.first();
+						uid = rs1.getInt("id");
+						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,isPic) VALUES ('0','"+kid+"','"+uid+"','"+mysql_real_escape_string(utils.escapeHtml(msg))+"','"+timestamp+"',1)", Statement.RETURN_GENERATED_KEYS);
+						rsAux = stmt2.getGeneratedKeys();
+						rsAux.next();
+						cid = rsAux.getInt(1);
+						
+						if(rs1.getInt("pAvatar") == 1) 
+							userAvatar = "http://"+ip+":"+port+"/avatars/parents/"+uid+".png";
+						else
+							userAvatar = "images/parent.png";
+						
+						final HashMap<String,Object>picHtml = new HashMap<String, Object>();
+						picHtml.put("id", cid);
+						picHtml.put("name", rs1.getString("pName"));
+						picHtml.put("avatar", userAvatar);
+						picHtml.put("time", timestamp);
+						picHtml.put("message",msg);
+						picHtml.put("class", "parentChat");
+						picHtml.put("isPic",1);
+						json = new HashMap<String, Object>() {{
+							put("status", "OK");
+							put("post", picHtml);
+						}};
+						response = genson.serialize(json);
+						break;
+					case "alertParent":
+						token = POST_("token");
+						kid = Integer.parseInt(POST_("kid"));
+						String eType = POST_("emergencyType");
+						
+						rs = stmt.executeQuery("SELECT p.id,p.avatar,k.avatar AS kAvatar,p.nombre AS pName,k.nombre AS kName,p.last_active FROM parents AS p LEFT JOIN kids AS k ON k.id = '"+kid+"' WHERE p.token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
+						//list($uid,$pAvatar,$kAvatar,$pname,$kname,$last) = mysql_fetch_array($q);
+						rs.first();
+						uid = rs.getInt("id");
+						String message = "";
+						String kname = rs.getString("kName");
+						switch(eType) {
+							case "POLICE":
+								message = "¡Soy "+utils.unescapeHtml(kname)+"! ¡Necesito que llames a la policía, por favor!";
+							break;
+							case "MEDIC":
+								message = "¡Soy "+utils.unescapeHtml(kname)+"! ¡Tengo una emergencia medica!";
+							break;
+							case "FIRE":
+								message = "¡Soy "+utils.unescapeHtml(kname)+"! ¡Necesito que llames a los bomberos, por favor!";
+							break;
+							default:
+								message = "¡Soy "+utils.unescapeHtml(kname)+"! Necesito asistencia, llama a mi casa o al dispositivo que cargo. ¡Gracias!";
+							break;
+						}
+						msg = "<div class='chatText'>"+utils.escapeHtml(message)+"</div>";
+						
+						timestamp = time();
+						stmt2.executeUpdate("INSERT INTO notifs (kid,parent,message) VALUES ('"+kid+"','"+uid+"','"+message+"')");
+						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,isPic) VALUES ('1','"+kid+"','"+uid+"','"+msg+"','"+timestamp+"',0)", Statement.RETURN_GENERATED_KEYS);
+						rsAux = stmt2.getGeneratedKeys();
+						rsAux.next();
+						cid = rsAux.getInt(1);
+						
+						if(rs.getInt("Avatar") == 1) 
+							userAvatar = "http://"+ip+":"+port+"/avatars/kid/"+kid+".png";
+						else
+							userAvatar = "images/kid.png";
+						
+						final HashMap<String,Object>alertHtml = new HashMap<String, Object>();
+						alertHtml.put("id", cid);
+						alertHtml.put("name", rs.getString("kName"));
+						alertHtml.put("avatar", userAvatar);
+						alertHtml.put("time", timestamp);
+						alertHtml.put("message",msg);
+						alertHtml.put("class", "kidChat");
+						alertHtml.put("isPic",0);
+						json = new HashMap<String, Object>() {{
+							put("status", "OK");
+							
+						}};
+						json.put("post", alertHtml);
+						json.put("message",msg);
+						json.put("sendSMS",(time() - rs.getLong("last_active") <= 180) ? 0 : 1);
+						response = genson.serialize(json);
+						break;
 					case "kidData":
 						token = POST_("token");
 						kid = Integer.parseInt(POST_("kid"));
@@ -627,7 +768,7 @@ public class Main {
 								put("name", (rs.getInt("isKid") == 0) ? rs1.getString("pName") : rs1.getString("kName"));
 								put("avatar",contactAvatar);
 								put("time",rs.getString("timeStamp"));
-								put("message",rs.getString("message"));
+								put("message",utils.unescapeHtml(rs.getString("message")));
 								put("class",(rs.getInt("isKid") == 0) ? "parentChat" : "kidChat");
 								put("isPic",rs.getInt("isPic"));
 							}};
@@ -737,7 +878,7 @@ public class Main {
 						phone = POST_("phone");
 						skype = POST_("skype");
 						userAvatar = POST_("avatar");
-						int cid = 0;
+						cid = 0;
 						
 						rs1 = stmt.executeQuery("SELECT id,nombre,tel,avatar,skype FROM parents WHERE token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
 						//list($uid,$pName,$pTel,$pAvatar) = mysql_fetch_array($q);
@@ -748,10 +889,13 @@ public class Main {
 							}};
 						}else{
 							if(userAvatar.length() > 0) {
-								cid = stmt2.executeUpdate("INSERT INTO contacts (kid,contact_name,contact_number,contact_skype,contact_avatar) VALUES ('"+kid+"','"+mysql_real_escape_string(utils.escapeHtml(name))+"','"+mysql_real_escape_string(phone)+"','"+mysql_real_escape_string(skype)+"',1)", Statement.RETURN_GENERATED_KEYS);
+								stmt2.executeUpdate("INSERT INTO contacts (kid,contact_name,contact_number,contact_skype,contact_avatar) VALUES ('"+kid+"','"+mysql_real_escape_string(utils.escapeHtml(name))+"','"+mysql_real_escape_string(phone)+"','"+mysql_real_escape_string(skype)+"',1)", Statement.RETURN_GENERATED_KEYS);
 							}else{
-								cid = stmt2.executeUpdate("INSERT INTO contacts (kid,contact_name,contact_number,contact_skype) VALUES ('"+kid+"','"+mysql_real_escape_string(utils.escapeHtml(name))+"','"+mysql_real_escape_string(phone)+"','"+mysql_real_escape_string(skype)+"')", Statement.RETURN_GENERATED_KEYS);
+								stmt2.executeUpdate("INSERT INTO contacts (kid,contact_name,contact_number,contact_skype) VALUES ('"+kid+"','"+mysql_real_escape_string(utils.escapeHtml(name))+"','"+mysql_real_escape_string(phone)+"','"+mysql_real_escape_string(skype)+"')", Statement.RETURN_GENERATED_KEYS);
 							}
+							rsAux = stmt2.getGeneratedKeys();
+							rsAux.next();
+							cid = rsAux.getInt(1);
 							saveAvatar(cid,"contacts",userAvatar);
 							rs2 = stmt2.executeQuery("SELECT id,contact_name,contact_number,contact_avatar,contact_skype FROM contacts WHERE kid = '"+kid+"' ORDER BY contact_name ASC");
 							

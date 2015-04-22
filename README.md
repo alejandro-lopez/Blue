@@ -25,8 +25,6 @@ Modulos API Completos:
 * /addContact
 * /editContact
 * /deleteContact
-
-Modulos API Pendientes:
 * /postChat
 * /sendPic
 * /alertParent
