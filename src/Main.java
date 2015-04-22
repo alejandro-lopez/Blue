@@ -339,7 +339,7 @@ public class Main {
 								kAvatar = rs.getInt("avatar");
 								last_pos = rs.getString("coords");
 								coord = rs.getString("default_coords");
-								address = rs.getString("coord_address");
+								address = utils.escapeHtml(rs.getString("coord_address"));
 								
 								rs2 = stmt_.executeQuery("SELECT id,contact_name,contact_number,contact_avatar,contact_skype FROM contacts WHERE kid = '"+kid+"' ORDER BY contact_name ASC");
 								//auxData = prependVIPContacts(uid,pName,pTel,pAvatar,pSkype);
@@ -407,7 +407,7 @@ public class Main {
 										String pic = "";
 										if(isPic == 1)
 											pic = "isPic";
-										chat+= "<div class=\"chatBody "+chatClass+" "+persp+"Persp "+pic+"\" id=\"chat-"+cid+"\"><div class=\"chatName\">"+cname+"</div><div class=\"chatAvatar\" style=\"background:url("+cAvatar+") center no-repeat;background-size:cover;\"></div><div class=\"chatTime\" old_time=\""+timestamp+"\"></div><div class=\"chatMessage\">"+utils.unescapeHtml(msg)+"</div></div>";
+										chat+= "<div class=\"chatBody "+chatClass+" "+persp+"Persp "+pic+"\" id=\"chat-"+cid+"\"><div class=\"chatName\">"+cname+"</div><div class=\"chatAvatar\" style=\"background:url("+cAvatar+") center no-repeat;background-size:cover;\"></div><div class=\"chatTime\" old_time=\""+timestamp+"\"></div><div class=\"chatMessage\">"+msg+"</div></div>";
 									}while(chatRS.next());
 								}
 								List<GeocoderResult> results = null;
@@ -524,6 +524,12 @@ public class Main {
 						boolean kidMode = Boolean.parseBoolean(POST_("kidMode"));
 						boolean shadowMode = Boolean.parseBoolean(POST_("shadowMode"));
 						String msg = POST_("message");
+						int encode = Integer.parseInt(POST_("encode"));
+						String message = "";
+						if(encode == 1)
+							message = utils.escapeHtml(msg);
+						else
+							message = msg;
 						kid = Integer.parseInt(POST_("kid"));
 						int isKid = 0;
 						if(kidMode == true)
@@ -533,7 +539,7 @@ public class Main {
 						//list($uid,$pAvatar,$kAvatar,$pname,$kname) = mysql_fetch_array($q);
 						rs1.first();
 						uid = rs1.getInt("id");
-						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp) VALUES ('"+isKid+"','"+kid+"','"+uid+"','"+mysql_real_escape_string(utils.escapeHtml(msg))+"','"+timestamp+"')", Statement.RETURN_GENERATED_KEYS);
+						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp) VALUES ('"+isKid+"','"+kid+"','"+uid+"','"+mysql_real_escape_string(message)+"','"+timestamp+"')", Statement.RETURN_GENERATED_KEYS);
 						ResultSet rsAux = stmt2.getGeneratedKeys();
 						rsAux.next();
 						int chatId = rsAux.getInt(1);
@@ -579,7 +585,7 @@ public class Main {
 						//list($uid,$pAvatar,$kAvatar,$pname,$kname) = mysql_fetch_array($q);
 						rs1.first();
 						uid = rs1.getInt("id");
-						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,isPic) VALUES ('0','"+kid+"','"+uid+"','"+mysql_real_escape_string(utils.escapeHtml(msg))+"','"+timestamp+"',1)", Statement.RETURN_GENERATED_KEYS);
+						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,isPic) VALUES ('0','"+kid+"','"+uid+"','"+msg+"','"+timestamp+"',1)", Statement.RETURN_GENERATED_KEYS);
 						rsAux = stmt2.getGeneratedKeys();
 						rsAux.next();
 						cid = rsAux.getInt(1);
@@ -612,7 +618,7 @@ public class Main {
 						//list($uid,$pAvatar,$kAvatar,$pname,$kname,$last) = mysql_fetch_array($q);
 						rs.first();
 						uid = rs.getInt("id");
-						String message = "";
+						message = "";
 						String kname = rs.getString("kName");
 						switch(eType) {
 							case "POLICE":
@@ -628,7 +634,7 @@ public class Main {
 								message = "¡Soy "+utils.unescapeHtml(kname)+"! Necesito asistencia, llama a mi casa o al dispositivo que cargo. ¡Gracias!";
 							break;
 						}
-						msg = "<div class='chatText'>"+utils.escapeHtml(message)+"</div>";
+						msg = "<div class=\"chatText\">"+utils.escapeHtml(message)+"</div>";
 						
 						timestamp = time();
 						stmt2.executeUpdate("INSERT INTO notifs (kid,parent,message) VALUES ('"+kid+"','"+uid+"','"+message+"')");
@@ -1301,32 +1307,53 @@ public class Main {
 			
 		}
 	}
-	public static void saveImage(String img, String key) {
+	public static void saveImage(String img, String key) throws IOException {
+		ImageWriter writer = null;
+		ImageWriter writerThumb = null;
+		FileImageOutputStream out1 = null;
+		FileImageOutputStream out2 = null;
 		try {
-	        img = img.substring(22);
+			
+	        //img = img.substring(22);
 	        byte[] imgByteArray = Base64.decodeBase64(img);
 	        
 	        InputStream in = new ByteArrayInputStream(imgByteArray);
 	        
 	        BufferedImage image = ImageIO.read(in);
+	        in.close();
 	        image = fillTransparentPixels(image,Color.WHITE);
 	        
         	JPEGImageWriteParam param = new JPEGImageWriteParam(null);
         	param.setCompressionMode(JPEGImageWriteParam.MODE_EXPLICIT);
         	param.setCompressionQuality((float) 0.85);
         	java.util.Iterator<ImageWriter> it = ImageIO.getImageWritersBySuffix("jpg");
-        	ImageWriter writer = it.next();
+        	writer = it.next();
+        	writerThumb = writer;
         	//dest.getParentFile().mkdirs();
-   
-        	writer.setOutput(new FileImageOutputStream(new File("C:\\pics\\"+key+".jpg")));
+        	out1 = new FileImageOutputStream(new File("C:\\pics\\"+key+".jpg"));
+        	writer.setOutput(out1);
         	writer.write(null, new IIOImage(image, null, null), param);
-        	param.setCompressionQuality((float) 0.20);
-        	writer.setOutput(new FileImageOutputStream(new File("C:\\pics\\"+key+"_thumb.jpg")));
-        	writer.write(null, new IIOImage(image, null, null), param);
-        	writer.dispose();
-		}catch(Exception ex){
-	        System.out.println("IMAGE ERROR: "+ex);
+        	out1.flush();
+        	out2 = new FileImageOutputStream(new File("C:\\pics\\"+key+"_thumb.jpg"));
+        	param.setCompressionQuality((float) 0.15);
+        	writerThumb.setOutput(out2);
+        	writerThumb.write(null, new IIOImage(image, null, null), param);
+        	out2.flush();
+        	
+		}catch(IOException e) { 
+	    	System.out.println("IMAGE ERROR: "+e);
+	    	writer.abort(); 
+	    	writerThumb.abort(); 
+	    	throw e;
+	    } finally {
+			try {                           
+				out1.close(); 
+				out2.close();
+			} catch(Exception inner) {}
+			 writer.dispose();
+			 writerThumb.dispose();
 	    }
+		//System.out.println("Image After: "+img);
 	}
 	public static BufferedImage fillTransparentPixels( BufferedImage image, Color fillColor ) {
 		int w = image.getWidth();
