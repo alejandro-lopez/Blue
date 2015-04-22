@@ -245,7 +245,7 @@ public class Main {
 			url = t.getRequestURI().toString();
 			Map<String, Object> json = null;
 			Map<String, Object> jsonMap = null;
-			
+			boolean isAsset = false;
 			try{
 				
 				String response = "";
@@ -1118,34 +1118,56 @@ public class Main {
 						response = genson.serialize(json);
 						break;
 					default:
+						isAsset = true;
+						URI uri = t.getRequestURI();
+						OutputStream os;
+						FileInputStream fs = null;
+						
 						try{
-							URI uri = t.getRequestURI();
 						    File file = new File(uri.getPath()).getAbsoluteFile();
-						    System.out.println(file.getPath());
-							t.sendResponseHeaders(200, 0);
-						    OutputStream os = t.getResponseBody();
-						    FileInputStream fs = new FileInputStream(file);
-						    final byte[] buffer = new byte[0x10000];
-						    int count = 0;
-						    while ((count = fs.read(buffer)) >= 0) {
-						    	os.write(buffer,0,count);
+						    if (!file.isFile()) {
+						    	 response = "404 (Not Found)\n"+uri.toString();
+						         t.sendResponseHeaders(404, response.length());
+						         os = t.getResponseBody();
+						         os.write(response.getBytes());
+						    }else{
+							    //System.out.println(file.getPath());
+								t.sendResponseHeaders(200, 0);
+							    os = t.getResponseBody();
+							    fs = new FileInputStream(file);
+							    final byte[] buffer = new byte[0x10000];
+							    int count = 0;
+							    while ((count = fs.read(buffer)) >= 0) {
+							    	os.write(buffer,0,count);
+							    }
+							    fs.close();
 						    }
-						    fs.close();
 						    os.close();
 						}catch(FileNotFoundException e){
-							System.out.println(e);
+							response = "404 (Not Found)\n";
+							t.sendResponseHeaders(404, response.length());
+						    os = t.getResponseBody();
+						    os.write(response.getBytes());
+							os.close();
 						}
 					    break;
 				}
-				Headers headers = t.getResponseHeaders();
-				headers.add("Access-Control-Allow-Origin", "*");
-				headers.add("Content-type","text/json");
-				t.sendResponseHeaders(200, response.length());
-				OutputStream os = t.getResponseBody();
-				os.write(response.getBytes());
-				os.close();
+				if(isAsset == false){
+					Headers headers = t.getResponseHeaders();
+					headers.add("Access-Control-Allow-Origin", "*");
+					headers.add("Content-type","text/json");
+					t.sendResponseHeaders(200, response.length());
+					OutputStream os = t.getResponseBody();
+					os.write(response.getBytes());
+					os.close();
+				}
 			}catch(Exception e){
-				System.out.println(e);
+				
+				String response = "Error 404\n";
+				t.sendResponseHeaders(404, response.length());
+				OutputStream os = t.getResponseBody();
+			    os.write(response.getBytes());
+				os.close();
 			}
         }
     }
