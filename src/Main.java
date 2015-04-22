@@ -130,6 +130,18 @@ public class Main {
 	 */
 	public Main() throws IOException {
 		System.out.println("Inicializando servidor...");
+		
+		/* CREAR FOLDERS */
+		File out = new File("\\BlueServer\\pics\\blank.txt");
+    	out.getParentFile().mkdirs();
+    	out = new File("\\BlueServer\\avatars\\kid\\blank.txt");
+    	out.getParentFile().mkdirs();
+    	out = new File("\\BlueServer\\avatars\\contacts\\blank.txt");
+    	out.getParentFile().mkdirs();
+    	out = new File("\\BlueServer\\avatars\\parents\\blank.txt");
+    	out.getParentFile().mkdirs();
+    	/* FIN CREAR FOLDERS */
+    	
 		initialize();
 		startServer(9000);
 		new MySQLCheck(mysqlServer, mysqlUser, mysqlPass, mysqlDatabase).start();
@@ -1025,7 +1037,7 @@ public class Main {
 						if(uid >0) {
 							stmt2.executeUpdate("DELETE FROM contacts WHERE kid = '"+kid+"' AND id = '"+cid+"' LIMIT 1");
 							try {
-								File file = new File("\\avatars\\contacts\\"+cid+".png");
+								File file = new File("\\BlueServer\\avatars\\contacts\\"+cid+".png");
 								 
 					    		if(file.delete()){
 					    			System.out.println("Avatar de contacto eliminado.");
@@ -1124,9 +1136,9 @@ public class Main {
 						FileInputStream fs = null;
 						
 						try{
-						    File file = new File(uri.getPath()).getAbsoluteFile();
+						    File file = new File("/BlueServer/"+uri.getPath()).getAbsoluteFile();
 						    if (!file.isFile()) {
-						    	 response = "404 (Not Found)\n"+uri.toString();
+						    	 response = "404 (Not Found)\n"+file.getAbsolutePath();
 						         t.sendResponseHeaders(404, response.length());
 						         os = t.getResponseBody();
 						         os.write(response.getBytes());
@@ -1345,7 +1357,7 @@ public class Main {
 		        InputStream in = new ByteArrayInputStream(imgByteArray);
 		        
 		        BufferedImage bufferedImage = ImageIO.read(in);
-		        ImageIO.write(bufferedImage, "png", new File("\\avatars\\"+type+"\\"+id+".png"));
+		        ImageIO.write(bufferedImage, "png", new File("\\BlueServer\\avatars\\"+type+"\\"+id+".png"));
 			}catch(Exception ex){
 		        System.out.println("AVATAR ERROR: "+ex);
 		    }
@@ -1375,11 +1387,11 @@ public class Main {
         	writer = it.next();
         	writerThumb = writer;
         	//dest.getParentFile().mkdirs();
-        	out1 = new FileImageOutputStream(new File("\\pics\\"+key+".jpg"));
+        	out1 = new FileImageOutputStream(new File("\\BlueServer\\pics\\"+key+".jpg"));
         	writer.setOutput(out1);
         	writer.write(null, new IIOImage(image, null, null), param);
         	out1.flush();
-        	out2 = new FileImageOutputStream(new File("\\pics\\"+key+"_thumb.jpg"));
+        	out2 = new FileImageOutputStream(new File("\\BlueServer\\pics\\"+key+"_thumb.jpg"));
         	param.setCompressionQuality((float) 0.15);
         	writerThumb.setOutput(out2);
         	writerThumb.write(null, new IIOImage(image, null, null), param);
