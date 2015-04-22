@@ -105,6 +105,8 @@ public class Main {
 	public static StringEscapeUtils utils = new StringEscapeUtils();
 	JLabel ipAddress;
 	static String ip;
+	public static JLabel mysqlLabel;
+
 
 	/**
 	 * Launch the application.
@@ -130,6 +132,7 @@ public class Main {
 		System.out.println("Inicializando servidor...");
 		initialize();
 		startServer(9000);
+		new MySQLCheck(mysqlServer, mysqlUser, mysqlPass, mysqlDatabase).start();
 	}
 
 	/**
@@ -142,21 +145,40 @@ public class Main {
 		frmBlueAppServer.setTitle("Blue App Server");
 		frmBlueAppServer.setBounds(100, 100, 323, 412);
 		frmBlueAppServer.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frmBlueAppServer.getContentPane().setLayout(null);
+		
+		openConn = new JLabel("Conexi\u00F3n abierta en:");
+		openConn.setFont(new Font("Tahoma", Font.BOLD, 11));
+		openConn.setHorizontalAlignment(SwingConstants.CENTER);
+		openConn.setForeground(Color.WHITE);
+		openConn.setBounds(10, 333, 297, 14);
+		frmBlueAppServer.getContentPane().add(openConn);
 		
 		ipAddress = new JLabel("http://0.0.0.0");
+		ipAddress.setBounds(0, 354, 317, 19);
 		ipAddress.setForeground(Color.WHITE);
 		ipAddress.setFont(new Font("Tahoma", Font.BOLD, 15));
 		ipAddress.setHorizontalAlignment(SwingConstants.CENTER);
-		frmBlueAppServer.getContentPane().add(ipAddress, BorderLayout.SOUTH);
+		frmBlueAppServer.getContentPane().add(ipAddress);
 		
-		JLabel bgImg = new JLabel("");
-		bgImg.setIcon(new ImageIcon(Main.class.getResource("/images/splash_320x426.png")));
-		frmBlueAppServer.getContentPane().add(bgImg, BorderLayout.NORTH);
+		
 	}
 	HttpServer server;
     ServerSocket server_socket;
    
 	public void startServer(int port) throws IOException {
+		
+		mysqlLabel = new JLabel("---");
+		mysqlLabel.setFont(new Font("Tahoma", Font.BOLD, 14));
+		mysqlLabel.setHorizontalAlignment(SwingConstants.CENTER);
+		mysqlLabel.setForeground(Color.WHITE);
+		mysqlLabel.setBounds(10, 31, 297, 18);
+		frmBlueAppServer.getContentPane().add(mysqlLabel);
+		JLabel bgImg = new JLabel("");
+		bgImg.setBounds(0, 0, 317, 426);
+		bgImg.setIcon(new ImageIcon(Main.class.getResource("/images/splash_320x426.png")));
+		frmBlueAppServer.getContentPane().add(bgImg);
+		
 		this.port = port;
 		dataSource = new MysqlDataSource();
 		dataSource.setUser(mysqlUser);
@@ -1003,7 +1025,7 @@ public class Main {
 						if(uid >0) {
 							stmt2.executeUpdate("DELETE FROM contacts WHERE kid = '"+kid+"' AND id = '"+cid+"' LIMIT 1");
 							try {
-								File file = new File("C:\\avatars\\contacts\\"+cid+".png");
+								File file = new File("\\avatars\\contacts\\"+cid+".png");
 								 
 					    		if(file.delete()){
 					    			System.out.println("Avatar de contacto eliminado.");
@@ -1222,6 +1244,7 @@ public class Main {
 		return size;
 	}
 	public static String avatarAux = "";
+	private JLabel openConn;
 	public static List<Map>prependVIPContacts(int uid, final String pName, final String pTel, final int pAvatar,final String pSkype) {
 		
 		if(pAvatar == 1)
@@ -1300,7 +1323,7 @@ public class Main {
 		        InputStream in = new ByteArrayInputStream(imgByteArray);
 		        
 		        BufferedImage bufferedImage = ImageIO.read(in);
-		        ImageIO.write(bufferedImage, "png", new File("C:\\avatars\\"+type+"\\"+id+".png"));
+		        ImageIO.write(bufferedImage, "png", new File("\\avatars\\"+type+"\\"+id+".png"));
 			}catch(Exception ex){
 		        System.out.println("AVATAR ERROR: "+ex);
 		    }
@@ -1330,11 +1353,11 @@ public class Main {
         	writer = it.next();
         	writerThumb = writer;
         	//dest.getParentFile().mkdirs();
-        	out1 = new FileImageOutputStream(new File("C:\\pics\\"+key+".jpg"));
+        	out1 = new FileImageOutputStream(new File("\\pics\\"+key+".jpg"));
         	writer.setOutput(out1);
         	writer.write(null, new IIOImage(image, null, null), param);
         	out1.flush();
-        	out2 = new FileImageOutputStream(new File("C:\\pics\\"+key+"_thumb.jpg"));
+        	out2 = new FileImageOutputStream(new File("\\pics\\"+key+"_thumb.jpg"));
         	param.setCompressionQuality((float) 0.15);
         	writerThumb.setOutput(out2);
         	writerThumb.write(null, new IIOImage(image, null, null), param);
