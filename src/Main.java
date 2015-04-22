@@ -182,7 +182,7 @@ public class Main {
         server.createContext("/editKid",new Handler("editKid"));			//COMPLETO
         server.createContext("/addContact",new Handler("addContact"));		//COMPLETO
         server.createContext("/editContact",new Handler("editContact"));	//COMPLETO
-        server.createContext("/deleteContact",new Handler("deleteContact"));
+        server.createContext("/deleteContact",new Handler("deleteContact"));//COMPLETO
         server.createContext("/kidData",new Handler("kidData"));			//COMPLETO
         server.createContext("/notifPoll",new Handler("notifPoll"));		//COMPLETO
         server.createContext("/shadowPoll",new Handler("shadowPoll"));		//COMPLETO
@@ -590,7 +590,7 @@ public class Main {
 						uid = rs1.getInt("id");
 						stmt_.executeUpdate("UPDATE parents SET last_active = UNIX_TIMESTAMP() WHERE id = '"+uid+"' LIMIT 1");
 						if(rs1.getInt("kAvatar") == 1) {
-							userAvatar = "http://uabc.imeev.com/app/avatars/kid/"+kidID+".png";	
+							userAvatar = "http://"+ip+":"+port+"/avatars/kid/"+kidID+".png";	
 						}else{
 							userAvatar = "";	
 						}
@@ -838,6 +838,59 @@ public class Main {
 								put("contacts",editContactList);
 							}};
 							
+						}
+						response = genson.serialize(json);
+						break;
+					case "deleteContact":
+						token = POST_("token");
+						kid = Integer.parseInt(POST_("kid"));
+						cid = Integer.parseInt(POST_("cid"));
+						
+						rs1 = stmt.executeQuery("SELECT id,nombre,tel,avatar,skype FROM parents WHERE token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
+						//list($uid) = mysql_fetch_array($q);
+						rs1.first();
+						uid = rs1.getInt("id");
+						if(uid >0) {
+							stmt2.executeUpdate("DELETE FROM contacts WHERE kid = '"+kid+"' AND id = '"+cid+"' LIMIT 1");
+							try {
+								File file = new File("C:\\avatars\\contacts\\"+cid+".png");
+								 
+					    		if(file.delete()){
+					    			System.out.println("Avatar de contacto eliminado.");
+					    		}
+							}catch(Exception e){}
+							rs2 = stmt2.executeQuery("SELECT id,contact_name,contact_number,contact_avatar,contact_skype FROM contacts WHERE kid = '"+kid+"' ORDER BY contact_name ASC");
+							
+							final ArrayList<Map>delContactList = new ArrayList<Map>();
+							delContactList.addAll(prependVIPContacts(rs1.getInt("id"),rs1.getString("nombre"),rs1.getString("tel"),rs1.getInt("avatar"),rs1.getString("skype")));
+							
+							while(rs2.next()) {
+								
+								//list($id,$cname,$num,$cAvatar,$skype) = $r_;
+								
+								if(rs2.getInt("contact_avatar") == 1)
+									contactAvatar = "http://"+ip+":"+port+"/avatars/contacts/"+rs2.getInt("id")+".png";
+								else
+									contactAvatar = "";
+								Map<String, Object> listaContactos = new HashMap<String, Object>(){{
+									put("type", "contact");
+									put("cid",rs2.getInt("id"));
+									put("name",rs2.getString("contact_name"));
+									put("tel",rs2.getString("contact_number"));
+									put("avatar",contactAvatar);
+									put("skype", rs2.getString("contact_skype"));
+								}};
+								delContactList.add(listaContactos);
+							}
+							
+							json = new HashMap<String, Object>() {{
+								put("status", "OK");
+								put("contacts",delContactList);
+							}};
+						}else{
+							json = new HashMap<String, Object>() {{
+								put("status","ERROR");
+							}};
 						}
 						response = genson.serialize(json);
 						break;
