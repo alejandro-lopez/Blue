@@ -180,8 +180,8 @@ public class Main {
         server.createContext("/register", new Handler("register"));			//COMPLETO
         server.createContext("/addKid",new Handler("addKid"));				//COMPLETO
         server.createContext("/editKid",new Handler("editKid"));			//COMPLETO
-        server.createContext("/addContact",new Handler("addContact"));
-        server.createContext("/editContact",new Handler("editContact"));
+        server.createContext("/addContact",new Handler("addContact"));		//COMPLETO
+        server.createContext("/editContact",new Handler("editContact"));	//COMPLETO
         server.createContext("/deleteContact",new Handler("deleteContact"));
         server.createContext("/kidData",new Handler("kidData"));			//COMPLETO
         server.createContext("/notifPoll",new Handler("notifPoll"));		//COMPLETO
@@ -796,6 +796,7 @@ public class Main {
 						
 						rs1 = stmt.executeQuery("SELECT id,nombre,tel,avatar,skype FROM parents WHERE token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
 						//list($uid,$pName,$pTel,$pAvatar) = mysql_fetch_array($q);
+						rs1.first();
 						if(name.trim().length() == 0) {
 							json = new HashMap<String, Object>() {{
 								put("status", "ERROR");
