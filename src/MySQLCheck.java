@@ -28,17 +28,24 @@ public class MySQLCheck extends Thread{
 			dataSource.setDatabaseName(database);
 			while(true) {
 				try {
+					//conn = dataSource.getConnection();
 					conn = dataSource.getConnection();
-					
-					Main.mysqlLabel.setText("MySQL Online");
-					Main.mysqlLabel.setForeground(Color.GREEN);
+					if(Main.mysqlStatus==false) {
+						Main.conn = dataSource.getConnection();
+						Main.conn2 = dataSource.getConnection();
+						Main.stmt = Main.conn.createStatement();
+						Main.stmt_ = Main.conn.createStatement();
+						Main.stmt2 = Main.conn.createStatement();
+						Main.mysqlLabel.setText("MySQL Online");
+						Main.mysqlLabel.setForeground(Color.GREEN);
+						Main.mysqlStatus = true;
+					}
 				}catch (SQLException e1) {
 					Main.mysqlLabel.setText("MySQL Offline");
 					Main.mysqlLabel.setForeground(Color.LIGHT_GRAY);
+					Main.mysqlStatus = false;
 				}
-				
-					Thread.sleep(5000);
-			
+				Thread.sleep(10000);
 			}
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block

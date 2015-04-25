@@ -29,9 +29,9 @@ Modulos API Completos:
 * /sendPic
 * /alertParent
 
->Folders necesarios:
-* C:\avatars
-* C:\avatars\contacts
-* C:\avatars\kid
-* C:\avatars\parents
-* C:\pics
+>Folders necesarios (creados en *runtime*):
+* C:\BlueServer\avatars
+* C:\BlueServer\avatars\contacts
+* C:\BlueServer\avatars\kid
+* C:\BlueServer\avatars\parents
+* C:\BlueServer\pics

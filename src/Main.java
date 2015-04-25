@@ -1,4 +1,6 @@
 import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Desktop;
 import java.awt.EventQueue;
 import java.awt.Graphics2D;
 
@@ -26,21 +28,16 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -60,12 +57,11 @@ import com.owlike.genson.Genson;
 import org.apache.commons.lang.StringEscapeUtils;
 
 import javax.swing.JLabel;
-
-import java.awt.BorderLayout;
-
 import javax.swing.ImageIcon;
 
 import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 
 import javax.mail.*;
@@ -73,6 +69,8 @@ import javax.mail.internet.*;
 import javax.swing.SwingConstants;
 
 import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 public class Main {
 	/* HTTP START */
@@ -85,6 +83,7 @@ public class Main {
 	String mysqlServer = "blue.uabc.imeev.com";
 	String mysqlDatabase = "blue_testing_db";
 	/* MYSQL END */
+	public static String ip = "127.0.0.1";
 	public static Connection conn;
 	public static Connection conn2;
 	public static Connection conn3;
@@ -103,15 +102,22 @@ public class Main {
 	public static Genson genson = new Genson();
 	public static int rowSet;
 	public static StringEscapeUtils utils = new StringEscapeUtils();
-	JLabel ipAddress;
-	static String ip;
+	public static JLabel ipAddress;
 	public static JLabel mysqlLabel;
+	public static String avatarAux = "";
+	private JLabel openConn;
+	HttpServer server;
+    ServerSocket server_socket;
+    URI ipUri;
+    public static boolean mysqlStatus = false; //FALSE = Offline, TRUE = Online
+    public static boolean httpStatus = false; //FALSE = Offline, TRUE = Online
 
 
 	/**
 	 * Launch the application.
 	 */
 	public static void main(String[] args) {
+		
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -144,7 +150,7 @@ public class Main {
     	
 		initialize();
 		startServer(9000);
-		new MySQLCheck(mysqlServer, mysqlUser, mysqlPass, mysqlDatabase).start();
+		
 	}
 
 	/**
@@ -166,19 +172,15 @@ public class Main {
 		openConn.setBounds(10, 333, 297, 14);
 		frmBlueAppServer.getContentPane().add(openConn);
 		
-		ipAddress = new JLabel("http://0.0.0.0");
+		ipAddress = new JLabel("<html><u>http://127.0.0.1</u>");
 		ipAddress.setBounds(0, 354, 317, 19);
 		ipAddress.setForeground(Color.WHITE);
 		ipAddress.setFont(new Font("Tahoma", Font.BOLD, 15));
 		ipAddress.setHorizontalAlignment(SwingConstants.CENTER);
+		ipAddress.setCursor(new Cursor(Cursor.HAND_CURSOR));
 		frmBlueAppServer.getContentPane().add(ipAddress);
-		
-		
 	}
-	HttpServer server;
-    ServerSocket server_socket;
-   
-	public void startServer(int port) throws IOException {
+	public void startServer(final int port) throws IOException {
 		
 		mysqlLabel = new JLabel("---");
 		mysqlLabel.setFont(new Font("Tahoma", Font.BOLD, 14));
@@ -198,8 +200,8 @@ public class Main {
 		dataSource.setServerName(mysqlServer);
 		dataSource.setDatabaseName(mysqlDatabase);
 		//dataSource.setPort(3306);
-		
-		try {
+		new MySQLCheck(mysqlServer, mysqlUser, mysqlPass, mysqlDatabase).start();
+		/*try {
 			conn = dataSource.getConnection();
 			conn2 = dataSource.getConnection();
 			stmt = conn.createStatement();
@@ -207,8 +209,8 @@ public class Main {
 			stmt2 = conn.createStatement();
 		} catch (SQLException e1) {
 			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+			//e1.printStackTrace();
+		}*/
 		HttpServer server = HttpServer.create(new InetSocketAddress(this.port), 0);
         server.createContext("/login", new Handler("login")); 				//COMPLETO
         server.createContext("/register", new Handler("register"));			//COMPLETO
@@ -232,19 +234,26 @@ public class Main {
         server.start();
         
         //String ip = InetAddress.getLocalHost().getHostAddress();
-        try {
-        Socket s = new Socket("google.com", 80);
-        ip = s.getLocalAddress().getHostAddress();
-        s.close();
-        System.out.println("Conexion abierta en: http://"+ip+":"+port);
-        ipAddress.setText("http://"+ip+":"+port);
-        }catch(Exception e) {
-        	System.out.println("FUERA DE LINEA");
-        	ipAddress.setText("http://127.0.0.1:"+port);
-        	ip = "127.0.0.1";
-        }
-        
+        new ConnCheck().start();
+        ipAddress.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				try {
+					ipUri = new URI("http://"+ip+":"+port);
+					if (Desktop.isDesktopSupported()) {
+					      try {
+					        Desktop.getDesktop().browse(ipUri);
+					      } catch (IOException ex) { System.out.println("No openUrl"); }
+					    } else {System.out.println("Desktop not supported."); }
+				} catch (URISyntaxException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				
+			}
+		});
 	}
+
 	static class Handler implements HttpHandler {
 		String section;
 		//Map<String, List<String>> mapa = null;
@@ -1134,14 +1143,36 @@ public class Main {
 						URI uri = t.getRequestURI();
 						OutputStream os;
 						FileInputStream fs = null;
+						Headers headers = t.getResponseHeaders();
+						headers.add("Access-Control-Allow-Origin", "*");
 						
 						try{
 						    File file = new File("/BlueServer/"+uri.getPath()).getAbsoluteFile();
 						    if (!file.isFile()) {
-						    	 response = "404 (Not Found)\n"+file.getAbsolutePath();
-						         t.sendResponseHeaders(404, response.length());
-						         os = t.getResponseBody();
-						         os.write(response.getBytes());
+						    	headers.add("Content-type","text/html");
+						    	if(file.getName().trim().equals("BlueServer") ) {
+						    		String mysqlStatText = "---";
+						    		response = "<html><head><title>Hola! - Blue Server</title><style>"
+						    				+ "body{background:#2E8BF3;color:#FFF;font-family:Arial,sans-serif}";
+						    		if(mysqlStatus ==true) {
+						    				response+= ".mysql{color:greenyellow;font-weight:bold}";
+						    				mysqlStatText = "MySQL Conectado";
+						    		}else{
+						    				response+= ".mysql{color:wheat;font-weight:bold}";
+						    				mysqlStatText = "MySQL Desconectado";
+						    		}
+						    		response+= "</style></head><body><b>Blue Server</b> est&aacute; en l&iacute;nea. :)<br/><br/>"
+						    				+ "<ul class=\"mysql\"><li>"+mysqlStatText+"</li></ul>"
+						    				+ "</body></html>";
+						    		t.sendResponseHeaders(200, response.length());
+						    	}else{
+						    		response = "<html><head><title>Error 404 - Blue Server</title><style>"
+						    				+ "body{background:#2E8BF3;color:#FFF;font-family:Arial,sans-serif}</style></head><body>";
+									response+= "<b>404 (Not Found)</b><br/>"+file.getAbsolutePath()+"</body></html>";
+									t.sendResponseHeaders(404, response.length());
+						    	}
+								os = t.getResponseBody();
+								os.write(response.getBytes());
 						    }else{
 							    //System.out.println(file.getPath());
 								t.sendResponseHeaders(200, 0);
@@ -1183,28 +1214,6 @@ public class Main {
 			}
         }
     }
-	
-	public static Map<String, List<String>> splitQuery(String urlStr) throws UnsupportedEncodingException {
-		final Map<String, List<String>> query_pairs = new LinkedHashMap<String, List<String>>();
-		URL url=null;
-		try {
-			url = new URL("http://"+urlStr);
-		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		final String[] pairs = url.getQuery().split("&");
-		for (String pair : pairs) {
-			final int idx = pair.indexOf("=");
-			final String key = idx > 0 ? URLDecoder.decode(pair.substring(0, idx), "UTF-8") : pair;
-			if (!query_pairs.containsKey(key)) {
-				query_pairs.put(key, new LinkedList<String>());
-			}
-			final String value = idx > 0 && pair.length() > idx + 1 ? URLDecoder.decode(pair.substring(idx + 1), "UTF-8") : null;
-			query_pairs.get(key).add(value);
-		}
-		return query_pairs;
-	}
 	public static Map<String, String> params(final String url) throws URISyntaxException {
 	    return new HashMap<String, String>() {{
 	        for(NameValuePair p : URLEncodedUtils.parse(new URI(url), "UTF-8")) 
@@ -1265,20 +1274,6 @@ public class Main {
 	public static long time() {
 		return System.currentTimeMillis() / 1000L;
 	}
-	public static int getRows(ResultSet resultSet) throws SQLException {
-		int size = 0;
-		try {
-		    resultSet.last();
-		    size = resultSet.getRow();
-		    resultSet.first();
-		}
-		catch(Exception ex) {
-		    return 0;
-		}
-		return size;
-	}
-	public static String avatarAux = "";
-	private JLabel openConn;
 	public static List<Map>prependVIPContacts(int uid, final String pName, final String pTel, final int pAvatar,final String pSkype) {
 		
 		if(pAvatar == 1)
@@ -1424,7 +1419,6 @@ public class Main {
 		g.dispose();
 		return image2;
 	}
-	
 	public static void enviar_correo(String email, String asunto, String cuerpo) throws UnsupportedEncodingException {
 		// Sender's email ID needs to be mentioned
 	    String from = "presens@uabc.imeev.com";
