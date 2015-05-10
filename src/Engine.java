@@ -83,6 +83,11 @@ public class Engine {
 								put("name",POST_("nombre"));
 								put("email",POST_("correo"));
 								put("tel",POST_("tel"));
+								put("avatar", "");
+								put("radius", 25);
+								put("pin", 1234);
+								put("skype", POST_("skype"));
+								put("action", "call");
 								put("token",token);
 							}};
 							json = new HashMap<String, Object>() {{
@@ -207,7 +212,7 @@ public class Engine {
 								avatar = "";
 							}
 							
-							chatRS = stmt3.executeQuery("SELECT c.id,c.isKid,c.message,c.timeStamp,c.isPic FROM (SELECT id,isKid,message,timeStamp,isPic FROM chat WHERE kid = '"+kid+"' AND parent = '"+uid+"' ORDER BY id DESC LIMIT 10) AS c ORDER BY c.id ASC");
+							chatRS = stmt3.executeQuery("SELECT c.id,c.isKid,c.message,c.timeStamp,c.isPic,c.seenByKid,c.seenByParent FROM (SELECT id,isKid,message,timeStamp,isPic,seenByKid,seenByParent FROM chat WHERE kid = '"+kid+"' AND parent = '"+uid+"' ORDER BY id DESC LIMIT 10) AS c ORDER BY c.id ASC");
 							String chat = "";
 							if(chatRS.first()) {
 								do{
@@ -296,6 +301,9 @@ public class Engine {
 					}
 					response = genson.serialize(json);
 					break;
+				case "logout":
+					stmt.executeUpdate("DELETE FROM notifs WHERE token = '"+mysql_real_escape_string(POST_("token"))+"' AND regID = '"+mysql_real_escape_string(POST_("regId"))+"'");
+					break;
 				case "editShadow":
 					token = POST_("token");
 					name = POST_("name");
@@ -372,7 +380,10 @@ public class Engine {
 					//list($uid,$pAvatar,$kAvatar,$pname,$kname) = mysql_fetch_array($q);
 					rs1.first();
 					uid = rs1.getInt("id");
-					stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp) VALUES ('"+isKid+"','"+kid+"','"+uid+"','"+mysql_real_escape_string(message)+"','"+timestamp+"')", Statement.RETURN_GENERATED_KEYS);
+					if(kidMode)
+						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,seenByKid) VALUES ('"+isKid+"','"+kid+"','"+uid+"','"+mysql_real_escape_string(message)+"','"+timestamp+"',1)", Statement.RETURN_GENERATED_KEYS);
+					if(shadowMode)
+						stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,seenByParent) VALUES ('"+isKid+"','"+kid+"','"+uid+"','"+mysql_real_escape_string(message)+"','"+timestamp+"',1)", Statement.RETURN_GENERATED_KEYS);
 					ResultSet rsAux = stmt2.getGeneratedKeys();
 					rsAux.next();
 					int chatId = rsAux.getInt(1);
@@ -418,7 +429,7 @@ public class Engine {
 					//list($uid,$pAvatar,$kAvatar,$pname,$kname) = mysql_fetch_array($q);
 					rs1.first();
 					uid = rs1.getInt("id");
-					stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,isPic) VALUES ('0','"+kid+"','"+uid+"','"+msg+"','"+timestamp+"',1)", Statement.RETURN_GENERATED_KEYS);
+					stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,isPic,seenByParent) VALUES ('0','"+kid+"','"+uid+"','"+msg+"','"+timestamp+"',1,1)", Statement.RETURN_GENERATED_KEYS);
 					rsAux = stmt2.getGeneratedKeys();
 					rsAux.next();
 					cid = rsAux.getInt(1);
@@ -446,7 +457,7 @@ public class Engine {
 					token = POST_("token");
 					kid = Integer.parseInt(POST_("kid"));
 					String eType = POST_("emergencyType");
-					
+					String submessage = "";
 					rs = stmt.executeQuery("SELECT p.id,p.avatar,k.avatar AS kAvatar,p.nombre AS pName,k.nombre AS kName,p.last_active FROM parents AS p LEFT JOIN kids AS k ON k.id = '"+kid+"' WHERE p.token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
 					//list($uid,$pAvatar,$kAvatar,$pname,$kname,$last) = mysql_fetch_array($q);
 					rs.first();
@@ -455,22 +466,24 @@ public class Engine {
 					String kname = rs.getString("kName");
 					switch(eType) {
 						case "POLICE":
-							message = "¡Soy "+utils.unescapeHtml(kname)+"! ¡Necesito que llames a la policía, por favor!";
+							submessage = "¡Necesito que llames a la policía, por favor!";
 						break;
 						case "MEDIC":
-							message = "¡Soy "+utils.unescapeHtml(kname)+"! ¡Tengo una emergencia medica!";
+							submessage = "¡Tengo una emergencia medica!";
 						break;
 						case "FIRE":
-							message = "¡Soy "+utils.unescapeHtml(kname)+"! ¡Necesito que llames a los bomberos, por favor!";
+							submessage = "¡Necesito que llames a los bomberos, por favor!";
 						break;
 						default:
-							message = "¡Soy "+utils.unescapeHtml(kname)+"! Necesito asistencia, llama a mi casa o al dispositivo que cargo. ¡Gracias!";
+							submessage = "Necesito asistencia, llama a mi casa o al dispositivo que cargo. ¡Gracias!";
 						break;
 					}
+					message = "¡Soy "+kname+"! "+submessage;
 					msg = "<div class=\"chatText\">"+utils.escapeHtml(message)+"</div>";
 					
 					timestamp = time();
-					stmt2.executeUpdate("INSERT INTO notifs (kid,parent,message) VALUES ('"+kid+"','"+uid+"','"+message+"')");
+					new pushNotification(token,"Mensaje de "+kname,submessage,POST_("regId"),kname,eType);
+					/*[DEPRECATED] stmt2.executeUpdate("INSERT INTO notifs (kid,parent,message) VALUES ('"+kid+"','"+uid+"','"+message+"')");*/
 					stmt2.executeUpdate("INSERT INTO chat (isKid,kid,parent,message,timeStamp,isPic) VALUES ('1','"+kid+"','"+uid+"','"+msg+"','"+timestamp+"',0)", Statement.RETURN_GENERATED_KEYS);
 					rsAux = stmt2.getGeneratedKeys();
 					rsAux.next();
@@ -536,7 +549,8 @@ public class Engine {
 					}};
 					response = genson.serialize(json);
 					break;
-				case "notifPoll":
+				/* [DEPRECATED]
+				 * case "notifPoll":
 					stmt3 = conn2.createStatement();
 					token = POST_("token");
 					rs = stmt.executeQuery("SELECT id FROM parents WHERE token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
@@ -556,7 +570,7 @@ public class Engine {
 						stmt3.executeUpdate("DELETE FROM notifs WHERE id = '"+rs.getInt("id")+"'");
 					}
 					response = genson.serialize(lista);
-					break;
+					break;*/
 				case "shadowPoll":
 					final List<Map> html = new ArrayList<Map>();
 					final List<Map> notifs = new ArrayList<Map>();
@@ -569,6 +583,7 @@ public class Engine {
 					rs1.first();
 					uid = rs1.getInt("id");
 					stmt3.executeUpdate("UPDATE parents SET last_active = UNIX_TIMESTAMP() WHERE id = '"+uid+"' LIMIT 1");
+					stmt.executeUpdate("UPDATE chat SET seenByParent = 1 WHERE kid = '"+mysql_real_escape_string(kidID)+"' AND parent = '"+uid+"'");
 					if(rs1.getInt("kAvatar") == 1) {
 						userAvatar = "http://"+Main.ip+":"+Main.port+"/avatars/kid/"+kidID+".png";	
 					}else{
@@ -577,7 +592,7 @@ public class Engine {
 					
 					if(POST_("requestAvatar") == "0")
 						userAvatar = "";
-					
+					/* [DEPRECATED]
 					rs = stmt.executeQuery("SELECT id,message FROM notifs WHERE parent = '"+uid+"' ORDER BY id ASC");
 					while(rs.next()) {
 						//list($nid,$message) = $r;
@@ -586,7 +601,7 @@ public class Engine {
 						}};
 						notifs.add(spNotifMensaje);
 						stmt3.executeUpdate("DELETE FROM notifs WHERE id = '"+rs.getInt("id")+"'");
-					}
+					}*/
 					
 				 	rs = stmt.executeQuery("SELECT c.id,c.isKid,c.message,c.timeStamp,c.isPic FROM (SELECT id,isKid,message,timeStamp,isPic FROM chat WHERE kid = '"+mysql_real_escape_string(kidID)+"' AND parent = '"+uid+"' ORDER BY id DESC LIMIT 10) AS c ORDER BY c.id ASC");
 					
@@ -619,7 +634,7 @@ public class Engine {
 						put("coords",rs1.getString("coords"));
 						put("avatar",userAvatar);
 						put("chat",html);
-						put("notifs",notifs);
+						/*[DEPRECATED] put("notifs",notifs);*/
 					}};
 					response = genson.serialize(json);
 					break;
@@ -895,6 +910,7 @@ public class Engine {
 						stmt.executeUpdate("UPDATE kids SET last_active = UNIX_TIMESTAMP(),coords = '"+coords+"' WHERE id = '"+mysql_real_escape_string(kidID)+"' LIMIT 1");
 					else
 						stmt.executeUpdate("UPDATE kids SET last_active = UNIX_TIMESTAMP() WHERE id = '"+mysql_real_escape_string(kidID)+"' LIMIT 1");
+					stmt.executeUpdate("UPDATE chat SET seenByKid = 1 WHERE kid = '"+mysql_real_escape_string(kidID)+"' AND parent = '"+uid+"'");
 					rs = stmt.executeQuery("SELECT c.id,c.isKid,c.message,c.timeStamp,c.isPic FROM (SELECT id,isKid,message,timeStamp,isPic FROM chat WHERE kid = '"+mysql_real_escape_string(kidID)+"' AND parent = '"+uid+"' ORDER BY id DESC LIMIT 10) AS c ORDER BY c.id ASC");
 
 					while(rs.next()) {
@@ -928,6 +944,17 @@ public class Engine {
 					}};
 					response = genson.serialize(json);
 					break;
+				case "saveRegId":
+					token = POST_("token");
+					String regId = POST_("regId");
+					stmt.executeUpdate("INSERT IGNORE INTO notifs SET regID = '"+mysql_real_escape_string(regId)+"',parent = '"+mysql_real_escape_string(token)+"'");
+					stmt.executeUpdate("UPDATE parents SET gcmRegID = '"+mysql_real_escape_string(regId)+"' WHERE token = '"+mysql_real_escape_string(token)+"' LIMIT 1");
+					
+					json = new HashMap<String, Object>() {{
+						put("status","OK");
+					}};
+					response = genson.serialize(json);
+				break;
 				default:
 					isAsset = true;
 					URI uri = t.getRequestURI();

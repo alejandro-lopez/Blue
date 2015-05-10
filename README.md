@@ -9,12 +9,13 @@ Modulos de Servicio Completos:
 * HTTP Server (Texto e Imagenes)
 * Subir Imagenes (Base64 a .png/.jpg)
 * Envío de correos (para modulo API /forgot)
+* Push Notifications (Google Cloud Messaging)
 
 Modulos API Completos:
 * /login
+* /logout
 * /register
 * /addKid
-* /notifPoll
 * /shadowPoll
 * /kidPoll
 * /getKidList
@@ -28,6 +29,9 @@ Modulos API Completos:
 * /postChat
 * /sendPic
 * /alertParent
+
+Modulos API Obsoletos:
+* /notifPoll
 
 >Folders necesarios (creados en *runtime*):
 * C:\BlueServer\avatars

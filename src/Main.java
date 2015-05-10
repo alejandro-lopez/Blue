@@ -130,6 +130,7 @@ public class Main {
 		
 		HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/login", new Handler("login")); 				//COMPLETO
+        server.createContext("/logout", new Handler("logout")); 			//COMPLETO
         server.createContext("/register", new Handler("register"));			//COMPLETO
         server.createContext("/addKid",new Handler("addKid"));				//COMPLETO
         server.createContext("/editKid",new Handler("editKid"));			//COMPLETO
