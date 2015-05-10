@@ -31,11 +31,11 @@ public class MySQLCheck extends Thread{
 					//conn = dataSource.getConnection();
 					conn = dataSource.getConnection();
 					if(Main.mysqlStatus==false) {
-						Main.conn = dataSource.getConnection();
-						Main.conn2 = dataSource.getConnection();
-						Main.stmt = Main.conn.createStatement();
-						Main.stmt_ = Main.conn.createStatement();
-						Main.stmt2 = Main.conn.createStatement();
+						Engine.conn = dataSource.getConnection();
+						Engine.conn2 = dataSource.getConnection();
+						Engine.stmt = Engine.conn.createStatement();
+						Engine.stmt3 = Engine.conn.createStatement();
+						Engine.stmt2 = Engine.conn.createStatement();
 						Main.mysqlLabel.setText("MySQL Online");
 						Main.mysqlLabel.setForeground(Color.GREEN);
 						Main.mysqlStatus = true;
